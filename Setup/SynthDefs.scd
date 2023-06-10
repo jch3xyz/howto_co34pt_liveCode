@@ -498,4 +498,23 @@ SynthDef(\randomChaos,
 
 
 
+///////////////////////////////////////////////////////////////////////////
+/*    Originals */
+///////////////////////////////////////////////////////////////////////////
+
+
+//Simple Hi-Hats made from white noise
+//rel = release; longer release times turn it into an open hat
+
+SynthDef(\hats, {
+	    arg out=0, rel=0.025, pan=0, amp=1;
+		var noise, env;
+
+		noise = WhiteNoise.ar;
+
+		env = EnvGen.kr(Env.perc(0, rel), doneAction: 2);
+
+		Out.ar(out, Pan2.ar(noise, pan, env * amp));
+	}).add;
+
 )
