@@ -496,6 +496,34 @@ SynthDef(\randomChaos,
 /*    SuperDirt Synths */
 ///////////////////////////////////////////////////////////////////////////
 
+//808 Style Kick/Bass with optional FM
+//too tonal to be used as a standard kick, more like bass
+//fm = modulator frequency of PMOsc
+//voice = pmindex of PMOsc; fm gets multiplied by this number
+//sus = sustain of the envelope
+
+SynthDef(\bellkick, {
+  arg out, pan, freq = 65, fm = 0, speed = 0.3, voice = 1, sus = 1, pitch2 = 0.00;
+  var beater, source, env;
+
+  env = Env.perc(0.005, sus).ar(Done.freeSelf);
+
+  source = Line.ar(freq * 2, freq, 0.02);
+  source = PMOsc.ar(source, fm, voice);
+  source = LPF.ar(source, 1000);
+
+  beater = WhiteNoise.ar(pitch2.clip);
+  beater = HPF.ar(beater, 500);
+  beater = LPF.ar(beater, XLine.ar(6000, 500, speed.clip * 0.1));
+  beater = beater * Env.perc.ar;
+
+  Out.ar(out, Pan2.ar((source + beater) * 3.dbamp, pan, env));
+},
+metadata: (
+  credit: "Renick Bell",
+  category: \drums,
+  tags: [\pitched, \bass, \sos]
+)).add;
 
 
 ///////////////////////////////////////////////////////////////////////////
