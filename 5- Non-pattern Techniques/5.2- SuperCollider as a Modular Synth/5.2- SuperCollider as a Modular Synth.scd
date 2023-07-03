@@ -15,17 +15,61 @@ p.fadeTime=5
 //a new proxy multiplying sine and pulse waves
 ~sinpulse = {~sin.ar * ~pulse.ar}
 ~sinpulse.play
+
+~sinpulse.stop
+
+~sin.play
+~sin.stop
+
+~pulse.play
+~pulse.stop
+
+/*
+
+A sine wave is genreated. Multichannel expansion makes it 2 sine waves, one in each ear. The left ear is playing at 80hz, and the right ear is playing at 82hz. This difference is not enough to make it a new notes, but creates a detuning effect.
+
+A pulse wave is generated (pulse = square wave of vairable width). Multichannel expansion makes it 2 pulse waves, one in each ear. The left is is playing at 20hz, and the right ear is playing at 21hz. A sine wave at control rate is being use to modulate the widths of the pulse waves, from 0.01 to 1 at a rate of 0.1hz.
+
+Multiplying these 2 waves together is an interesting way of combining them into one sound, instead of stacking them by adding. It becomes a complex form of modulation. Essentially FM, but it's somewhat ambiguous which is the carrier, and which is the modulator. I tend to think of the pulse wave as the modulator, because it is lower frequency and has the LFO going. The Sin wave is carrying the main pitch that's bleeding through.
+
+*/
+
+
+
+
+
 //feed this into a delay with its delay line modulated slightly
 ~delay = {CombC.ar(~sinpulse.ar,1,LFNoise1.kr(0.1).range(0.1,0.3),4)}
 ~delay.play
+
+/*
+
+Creating a new synth based on a delay Ugen. The input of the delay is our ~sinpulse signal. The delay time is modulated by a low frequency noise signal to generate random values (between 0.1 and 0.3) at control rate.
+
+*/
+
+
 //increase the pulse speed and decrease the width, play it alongside the original
 ~pulse2 = {Pulse.ar([40,41],SinOsc.kr(0.1).range(0.001,0.1),0.5)}
 ~pulse2.play;
-//actually no that would sound much better just in the delay, so ~pulse2 from playing and add it into ~delay by using Mix.ar
+//actually no that would sound much better just in the delay, so stop ~pulse2 from playing and add it into ~delay by using Mix.ar
 (
 ~pulse2.stop;
 ~delay = {CombC.ar(Mix.ar([~sinpulse.ar,~pulse2.ar]),1,LFNoise1.kr(0.1).range(0.1,0.3),4)};
 )
+
+/*
+
+Created a new synth based on a pulse wave. Also multichannel expasion. Also modulating the width with a sine wave at a rate of 0.1hz, but this time with a range of shorter widths. It's also an octave down from the percieved pitch of sinpulse.
+
+We want that synth to only play inside the delay.
+
+We use Mix.ar to smoothly mix these signals together as the input of our delay, instead of multiplying them which would cause them to modulate each other, or adding them which would increase their amplitudes too loud.
+
+*/
+
+
+
 //now we have some drones, some heavily gated and filtered noise would be good.
 (
 ~noise = {RLPF.ar(WhiteNoise.ar(1),LFNoise1.kr(0.1).range(100,2000),SinOsc.kr(0.1).range(0.1,0.4),1)};
@@ -41,6 +85,20 @@ p.fadeTime=5
 ~totalNoise = {Pan2.ar(~noise.ar*~noiseEnv.ar,SinOsc.kr(0.1))};
 ~totalNoise.play;
 )
+
+/*
+
+Creating a new synth out of filtered noise, we decide to use a resonant low pass filter. The input signal to this filter is white noise at full volume. The frequency cutoff of the filter is being modulated by a low frequency noise generator, which is generating random values between 100 and 2000 at a rate of 0.1hz. The Q of the filter is being modulated by a control rate sine wave, oscilating between 0.1 and 0.4, also at a rate of 0.1hz.
+
+Now, if we want to turn that noise into percussion, we can apply an envelope to it. We use an envelope generator, give it a percussive envelope, and use a Dust Ugen to trigger its gate. The density of the Dust Ugen is set to 4, meaning the gate will trigger at an average of 4 times per second, but the intervals of time between these tiggers will be random.
+
+Since we didn't use multichannel expansion, we need to use a Pan2 Ugen to make the signal stereo. We multiply the noise by the envelope to apply it. You can almost think of it as amplitude modulation. Then we'll use a sine wave at control rate to modulate the pan position of the noise at a rate of 0.1hz.
+
+*/
+
+
+
+
 //the filtering on the noise isn't extreme enough, change it!
 ~noise = {RLPF.ar(WhiteNoise.ar(1),LFNoise1.kr(0.6).range(100,2000),SinOsc.kr(0.04).range(0.00001,0.2),1)};
 //the noise could also do with some delay, which would sound nice if it was fed back through a pitch shifter:
@@ -66,11 +124,36 @@ p.fadeTime=5
 //let's cut the original pulse/sine waves over a few seconds
 ~delay.stop(20)
 ~sinpulse.stop(20)
+
+/*
+
+So, what's going on here is that we put our percusive noise generator into a delay.Both are playing at the same time. We then put that delay into a pitch shifter. Now all 3 are playing at the same time. Then we mixed the pitch shifter back into the original delay, creating a feedback loop. We have to significantly attenuate the amplitude of the pitch shifter that gets mixed back in, or else the infinite feedback loop spirals the amplitude to infinity. Thanks to the stage limiter, this actually just results in silence.
+
+We can modulate the amplitude of the pitch shifter that gets mixed back in to create varying amounts of feedback.
+
+We can also modulate the delay time of the delay.
+
+I guess playing with feedback may introduce DC bias. LeakDC.ar gets rid of it.
+
+*/
+
+
 //then put them inside of a DFM1 that can self-oscillate
 //make sure you evaluate ~noiseDelayAdd twice before you .play it
 ~noiseDelayAdd = {DFM1.ar(Mix.ar([~delay.ar,~sinpulse.ar]),500,SinOsc.kr(0.1).range(0.5,2),1,0,0.03)}
 //if you've evaluated the above line twice, play it
 ~noiseDelayAdd.play
+
+
+/*
+
+We put some drone sounds in to a DFM1 filter, and set it to low pass at 500hz.
+
+Now we are modulating the resonance of this filter with a sine wave, because this filter can self-oscilalte at high resonances.
+
+*/
+
+
 //a lot of these sounds are quite degraded, some harsh sounds would be nice, let's have some chaos
 //go to the help file for Henon2DC and copy-paste the second example but don't evaluate it (you'll need sc3-plugins for this)
 /*
@@ -111,11 +194,25 @@ p.fadeTime=5
 ~verb.play
 //increase the reverb time
 ~time = {40};
+
+
+
 //this needs some melody - add two melodies in stereo, slightly out of phase:
 ~saws = {LFSaw.ar([LFSaw.kr(0.1).range(100,1000).round(50),LFSaw.kr(0.11).range(100,1000).round(50)],0,0.3)}
 ~saws.play
 //too harsh, needs filtering
 ~saws = {RLPFD.ar(LFSaw.ar([LFSaw.kr(0.1).range(100,1000).round(50),LFSaw.kr(0.101).range(100,1000).round(50)],0,0.8),1000,0.8,0.6,10)};
+
+/*
+
+To create a simple melody, you can modulate the frequency of an oscillator, and round the output of the modulation to a multiple. In this case, multiples of 50. This results in playing the harmonic series, using your rounding number as your fundamental frequency.
+
+In this case, a saw wave is used, becayse it acts as a ramp, going up across it's duty cycles, and then dropping back down, right at the end, before the next duty cycle.
+
+Multichannel expansion is used to create 2 of the same melody, one in ear each, but each playing at a different rate.
+
+*/
+
 //another delay would be nice
 ~sawDelay = {CombC.ar(~saws.ar,1,0.5,10)};
 ~sawDelay.play;
